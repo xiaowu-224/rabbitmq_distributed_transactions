@@ -8,6 +8,7 @@ import org.springframework.amqp.core.ReturnedMessage;
 import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
@@ -27,8 +28,8 @@ import org.springframework.context.annotation.Configuration;
 @Slf4j
 public class MoodyRabbitConfig implements ApplicationContextAware {
     private final TransMessageService transMessageService;
-
-    public MoodyRabbitConfig(@Qualifier("transMessageService") TransMessageService transMessageService) {
+       @Autowired
+    public MoodyRabbitConfig(TransMessageService transMessageService) {
         this.transMessageService = transMessageService;
     }
 
@@ -44,30 +45,30 @@ public class MoodyRabbitConfig implements ApplicationContextAware {
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
         //获取RabbitTemplate
         RabbitTemplate rabbitTemplate = applicationContext.getBean(RabbitTemplate.class);
-        rabbitTemplate.setConfirmCallback(new RabbitTemplate.ConfirmCallback() {
-
-            @Override
-            public void confirm(CorrelationData correlationData, boolean ack, String cause) {
-                log.info("ConfirmCallback:" + correlationData + " ack " + ack + " cause " + cause);
-                //correlationData存放有落盘消息id 如果为空无法找到对应落盘消息
-                if (ack&&null!=correlationData) {
-                    String messageId = correlationData.getId();
-                    log.info("消息已经正确投递到交换机,id:{}",messageId);
-                    transMessageService.messageSendSuccess(messageId);
-                }else {
-                    log.info("消息投递至交换机失败,correlationData:{}",correlationData);
-                }
-            }
-        });
         //设置ReturnCallBack
         rabbitTemplate.setReturnsCallback(new RabbitTemplate.ReturnsCallback() {
             @Override
             public void returnedMessage(ReturnedMessage returnedMessage) {
-                log.debug("消息无法路由!" + returnedMessage.getExchange() + returnedMessage.getRoutingKey() + returnedMessage.getMessage() + returnedMessage.getReplyText());
+                log.error("消息无法路由!" + returnedMessage.getExchange() + returnedMessage.getRoutingKey() + returnedMessage.getMessage() + returnedMessage.getReplyText());
                 Message message = returnedMessage.getMessage();
                 MessageProperties messageProperties = message.getMessageProperties();
                 String messageId = messageProperties.getMessageId();
-                transMessageService.messageSendReturn(messageId,messageProperties.getReceivedRoutingKey(),new String(message.getBody()));
+                transMessageService.messageSendReturn(messageId, messageProperties.getReceivedRoutingKey(), new String(message.getBody()));
+            }
+        });
+
+        rabbitTemplate.setConfirmCallback(new RabbitTemplate.ConfirmCallback() {
+            @Override
+            public void confirm(CorrelationData correlationData, boolean ack, String cause) {
+                log.info("ConfirmCallback:" + correlationData + " ack " + ack + " cause " + cause);
+                //correlationData存放有落盘消息id 如果为空无法找到对应落盘消息
+                if (ack && null != correlationData) {
+                    String messageId = correlationData.getId();
+                    log.info("消息已经正确投递到交换机,id:{}", messageId);
+                    transMessageService.messageSendSuccess(messageId);
+                } else {
+                    log.info("消息投递至交换机失败,correlationData:{}", correlationData);
+                }
             }
         });
     }

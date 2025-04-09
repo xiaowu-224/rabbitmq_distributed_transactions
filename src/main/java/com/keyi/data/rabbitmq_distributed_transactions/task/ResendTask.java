@@ -4,6 +4,10 @@ import com.keyi.data.rabbitmq_distributed_transactions.po.TransMessagePO;
 import com.keyi.data.rabbitmq_distributed_transactions.sender.TransMessageSender;
 import com.keyi.data.rabbitmq_distributed_transactions.service.TransMessageService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.core.Message;
+import org.springframework.amqp.core.MessageProperties;
+import org.springframework.amqp.rabbit.connection.CorrelationData;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
@@ -17,7 +21,6 @@ import java.util.stream.Collectors;
 /**
  * 消息重发的定时任务
  */
-@EnableScheduling
 @Configuration
 @Component
 @Slf4j
@@ -26,16 +29,18 @@ public class ResendTask {
     private TransMessageService transMessageService;
 
     private TransMessageSender transMessageSender;
+
+    private RabbitTemplate rabbitTemplate;
+
+    @Value("${moodymq.resendTimes}")
+    Integer resendTimes;
+
     @Autowired
-    public ResendTask(TransMessageService transMessageService, TransMessageSender transMessageSender) {
+    public ResendTask(TransMessageService transMessageService, TransMessageSender transMessageSender, RabbitTemplate rabbitTemplate) {
         this.transMessageService = transMessageService;
         this.transMessageSender = transMessageSender;
+        this.rabbitTemplate = rabbitTemplate;
     }
-
-
-
-    @Value("${moodymq.resendTimes")
-    Integer   resendTimes;
 
 
     @Scheduled(fixedDelayString = "${moodymq.resendFreq}")
@@ -48,9 +53,13 @@ public class ResendTask {
             if (x.getSequence() > resendTimes) {
                 log.error("resend too many times! msgId:{}", x.getId());
                 transMessageService.messageDead(x.getId());
-
             } else {
-                transMessageSender.send(x.getExchange(), x.getRoutingKey(), x.getPayload());
+                MessageProperties messageProperties = new MessageProperties();
+                messageProperties.setMessageId(x.getId());
+                messageProperties.setContentType("application/json");
+                Message message = new Message(x.getPayload().getBytes(), messageProperties);
+                rabbitTemplate.convertAndSend(x.getExchange(), x.getRoutingKey(), message, new CorrelationData(x.getId()));
+                log.info("send(): success");
                 transMessageService.messageResend(x.getId());
             }
         });

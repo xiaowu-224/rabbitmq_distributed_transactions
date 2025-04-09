@@ -63,4 +63,32 @@ public interface TransMessageService {
      **/
     void  messageDead(String id);
 
+    /**
+     * 保存监听到的死信消息
+     * @param id
+     * @param exchange
+     * @param routingKey
+     * @param body
+     * @param queue
+     */
+    void  messageDead(String id,String exchange,String routingKey,String body,String queue);
+
+    /**
+     * 消息消费前落库
+     * @param id
+     * @param exchange
+     * @param routingKey
+     * @param body
+     * @param queue
+     * @return
+     */
+    TransMessagePO messageReceiveRead(String id,String exchange,String routingKey,String body,String queue);
+
+    /**
+     * 消息成功消费
+     * @param id
+     */
+    void   messageReceiveSuccess(String id);
+
+
 }
