@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.keyi.data.rabbitmq_distributed_transactions.dao.TransMessageDao">
+
+    <insert id="insert" parameterType="com.keyi.data.rabbitmq_distributed_transactions.po.TransMessagePO">
+        insert into trans_message(id, service, type, exchange, routing_key, queue, sequence, payload, date)
+        values (#{id}, #{service}, #{type}, #{exchange}, #{routingKey}, #{queue}, #{sequence}, #{payload}, #{date})
+    </insert>
+    <update id="update" parameterType="com.keyi.data.rabbitmq_distributed_transactions.po.TransMessagePO">
+        update trans_message
+        set type=#{type},
+            service=#{service},
+            routing_key=#{routingKey},
+            queue=#{queue},
+            sequence=#{sequence},
+            payload=#{payload},
+            date=#{date}
+        where id = #{id}
+          and service = #{service}
+    </update>
+
+    <select id="selectByIdAndService" resultType="com.keyi.data.rabbitmq_distributed_transactions.po.TransMessagePO">
+        SELECT id,
+               service,
+               type,
+               exchange,
+               routing_key,
+               queue,
+               sequence,
+               payload,
+               `date`
+        From trans_message
+        where id = #{id}
+          and service = #{service}
+    </select>
+
+    <select id="selectByTypeAndService" resultType="com.keyi.data.rabbitmq_distributed_transactions.po.TransMessagePO">
+        SELECT id,
+               service,
+               type,
+               exchange,
+               routing_key,
+               queue,
+               sequence,
+               payload,
+               `date`
+        From trans_message
+        where type = #{type}
+          and service = #{service}
+    </select>
+
+    <delete id="delete">
+        delete  from trans_message where id=#{id} and service =#{service}
+    </delete>
+</mapper>
